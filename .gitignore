@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment files may contain secrets.
+.env
+.env.local
+.env.*.local
+
+# Prisma generated files are recreated from the schema.
+src/generated/prisma/
+.neon
