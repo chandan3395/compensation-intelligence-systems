@@ -3,8 +3,78 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-// Phase 2 will define the enums, models, relationships, and indexes.
+enum Level {
+  INTERN
+  L1
+  L2
+  L3
+  SENIOR
+  STAFF
+  PRINCIPAL
+}
+
+enum Currency {
+  INR
+  USD
+}
+
+enum SalaryPeriod {
+  MONTHLY
+  ANNUAL
+}
+
+model Company {
+  id             String              @id @default(cuid())
+  nameRaw        String
+  nameNormalized String              @unique
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  entries        CompensationEntry[]
+}
+
+model AnonymousSubmitter {
+  id          String              @id @default(cuid())
+  anonymousId String              @unique
+  createdAt   DateTime            @default(now())
+  lastSeenAt  DateTime            @default(now())
+  entries     CompensationEntry[]
+}
+
+model CompensationEntry {
+  id                  String       @id @default(cuid())
+  companyId           String
+  submitterId         String
+  roleRaw             String
+  roleNormalized      String
+  level               Level
+  city                String
+  state               String
+  country             String
+  currency            Currency
+  salaryPeriod        SalaryPeriod
+  baseSalarySubmitted Decimal      @db.Decimal(14, 2)
+  annualBaseSalary    Decimal      @db.Decimal(14, 2)
+  annualBonus         Decimal      @default(0) @db.Decimal(14, 2)
+  annualStock         Decimal      @default(0) @db.Decimal(14, 2)
+  totalCompensation   Decimal      @db.Decimal(14, 2)
+  yearsOfExperience   Decimal      @db.Decimal(4, 1)
+  createdAt           DateTime     @default(now())
+
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  submitter AnonymousSubmitter @relation(fields: [submitterId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([roleNormalized])
+  @@index([level])
+  @@index([city])
+  @@index([state])
+  @@index([country])
+  @@index([currency])
+  @@index([createdAt])
+  @@index([submitterId, companyId, roleNormalized, level, city, state, country, annualBaseSalary, currency, createdAt])
+}
