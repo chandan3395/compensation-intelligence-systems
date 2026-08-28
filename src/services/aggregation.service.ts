@@ -2,7 +2,15 @@ import { Currency, Level, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { normalizeCompanyName, normalizeRole } from "@/utils/normalize";
-import type { ValidatedCompanyAggregationQuery } from "@/validators/query.validator";
+
+export type CompensationAggregationFilters = {
+  currency: Currency;
+  role?: string;
+  level?: Level;
+  city?: string;
+  state?: string;
+  country?: string;
+};
 
 export type CompanyCompensationAggregation = {
   company: string;
@@ -46,7 +54,7 @@ function calculateMedian(sortedValues: Prisma.Decimal[]): Prisma.Decimal {
 
 export async function getCompanyCompensationAggregation(
   companyName: string,
-  query: ValidatedCompanyAggregationQuery,
+  query: CompensationAggregationFilters,
 ): Promise<CompanyAggregationResult> {
   const company = await prisma.company.findUnique({
     where: { nameNormalized: normalizeCompanyName(companyName) },
@@ -61,6 +69,7 @@ export async function getCompanyCompensationAggregation(
     companyId: company.id,
     currency: query.currency,
     roleNormalized: query.role ? normalizeRole(query.role) : undefined,
+    level: query.level,
     city: query.city,
     state: query.state,
     country: query.country,
