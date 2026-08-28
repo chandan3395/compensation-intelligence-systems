@@ -8,6 +8,7 @@ import {
   calculateTotalCompensation,
 } from "@/utils/salary";
 import type { ValidatedCompensationPayload } from "@/validators/compensation.validator";
+import type { ValidatedCompensationSearchQuery } from "@/validators/query.validator";
 
 export type CompensationSummary = {
   id: string;
@@ -31,6 +32,32 @@ export type CreateCompensationResult =
       status: "duplicate";
       anonymousId: string;
     };
+
+export type CompensationSearchEntry = {
+  id: string;
+  company: string;
+  role: string;
+  level: ValidatedCompensationPayload["level"];
+  city: string;
+  state: string;
+  country: string;
+  currency: ValidatedCompensationPayload["currency"];
+  annualBaseSalary: number;
+  annualBonus: number;
+  annualStock: number;
+  totalCompensation: number;
+  yearsOfExperience: number;
+};
+
+export type CompensationSearchResult = {
+  entries: CompensationSearchEntry[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalRecords: number;
+    totalPages: number;
+  };
+};
 
 function isUniqueConstraintError(error: unknown): boolean {
   return (
@@ -137,4 +164,101 @@ export async function createCompensationEntry(
 
     throw error;
   }
+}
+
+export async function searchCompensationEntries(
+  query: ValidatedCompensationSearchQuery,
+): Promise<CompensationSearchResult> {
+  const where: Prisma.CompensationEntryWhereInput = {
+    level: query.level,
+    city: query.city,
+    state: query.state,
+    country: query.country,
+    currency: query.currency,
+    roleNormalized: query.role ? normalizeRole(query.role) : undefined,
+    company: query.company
+      ? { nameNormalized: normalizeCompanyName(query.company) }
+      : undefined,
+    annualBaseSalary:
+      query.minBaseSalary !== undefined || query.maxBaseSalary !== undefined
+        ? {
+            gte:
+              query.minBaseSalary !== undefined
+                ? new Prisma.Decimal(query.minBaseSalary)
+                : undefined,
+            lte:
+              query.maxBaseSalary !== undefined
+                ? new Prisma.Decimal(query.maxBaseSalary)
+                : undefined,
+          }
+        : undefined,
+    yearsOfExperience:
+      query.minExperience !== undefined || query.maxExperience !== undefined
+        ? {
+            gte:
+              query.minExperience !== undefined
+                ? new Prisma.Decimal(query.minExperience)
+                : undefined,
+            lte:
+              query.maxExperience !== undefined
+                ? new Prisma.Decimal(query.maxExperience)
+                : undefined,
+          }
+        : undefined,
+  };
+  const sortBy = query.sortBy ?? "createdAt";
+  const order = query.order ?? "desc";
+  const orderBy: Prisma.CompensationEntryOrderByWithRelationInput = {
+    [sortBy]: order,
+  };
+  const skip = (query.page - 1) * query.limit;
+
+  const [entries, totalRecords] = await prisma.$transaction([
+    prisma.compensationEntry.findMany({
+      where,
+      orderBy,
+      skip,
+      take: query.limit,
+      select: {
+        id: true,
+        roleRaw: true,
+        level: true,
+        city: true,
+        state: true,
+        country: true,
+        currency: true,
+        annualBaseSalary: true,
+        annualBonus: true,
+        annualStock: true,
+        totalCompensation: true,
+        yearsOfExperience: true,
+        company: { select: { nameRaw: true } },
+      },
+    }),
+    prisma.compensationEntry.count({ where }),
+  ]);
+
+  return {
+    entries: entries.map((entry) => ({
+      id: entry.id,
+      company: entry.company.nameRaw,
+      role: entry.roleRaw,
+      level: entry.level,
+      city: entry.city,
+      state: entry.state,
+      country: entry.country,
+      currency: entry.currency,
+      annualBaseSalary: entry.annualBaseSalary.toNumber(),
+      annualBonus: entry.annualBonus.toNumber(),
+      annualStock: entry.annualStock.toNumber(),
+      totalCompensation: entry.totalCompensation.toNumber(),
+      yearsOfExperience: entry.yearsOfExperience.toNumber(),
+    })),
+    pagination: {
+      page: query.page,
+      limit: query.limit,
+      totalRecords,
+      totalPages: Math.ceil(totalRecords / query.limit),
+    },
+  };
 }

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createCompensationEntry } from "@/services/compensation.service";
+import {
+  createCompensationEntry,
+  searchCompensationEntries,
+} from "@/services/compensation.service";
 import { errorResponse, successResponse } from "@/utils/response";
 import { validateCompensationPayload } from "@/validators/compensation.validator";
+import { validateCompensationSearchQuery } from "@/validators/query.validator";
 
 const ANONYMOUS_ID_COOKIE = "anonymous_submitter_id";
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
@@ -77,6 +81,33 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       errorResponse("INTERNAL_ERROR", "Unable to create compensation entry."),
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const validation = validateCompensationSearchQuery(request.nextUrl.searchParams);
+
+  if (!validation.ok) {
+    return NextResponse.json(
+      errorResponse("VALIDATION_ERROR", "Invalid compensation query."),
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await searchCompensationEntries(validation.data);
+
+    return NextResponse.json({
+      ...successResponse(result.entries),
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Failed to search compensation entries", error);
+
+    return NextResponse.json(
+      errorResponse("INTERNAL_ERROR", "Unable to search compensation entries."),
       { status: 500 },
     );
   }
