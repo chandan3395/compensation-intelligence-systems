@@ -76,5 +76,5 @@ model CompensationEntry {
   @@index([country])
   @@index([currency])
   @@index([createdAt])
-  @@index([submitterId, companyId, roleNormalized, level, city, state, country, annualBaseSalary, currency, createdAt])
+  @@unique([submitterId, companyId, roleNormalized, level, city, state, country, annualBaseSalary, currency])
 }

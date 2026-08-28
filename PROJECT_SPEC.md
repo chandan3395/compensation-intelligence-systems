@@ -311,9 +311,9 @@ Important:
 
 The system must allow multiple different users to submit identical compensation data.
 
-Duplicate detection is based on the **same anonymous submitter**.
+Duplicate detection is based on the **same anonymous submitter** and is permanent.
 
-A probable duplicate is:
+A duplicate is:
 
 - same anonymous submitter
 - same company
@@ -324,15 +324,20 @@ A probable duplicate is:
 - same country
 - same annualized base salary
 - same currency
-- submitted within the previous **24 hours**
 
-Bonus and stock are **not** part of duplicate identity.
+Bonus, stock, and salary period are **not** part of duplicate identity. Salary period is excluded because duplicate matching uses annualized base salary.
+
+Company identity uses the normalized company value, and role identity uses the normalized role value.
+
+The database must enforce this identity with a composite unique constraint. Application-level duplicate checks may provide a friendly error response, but the database constraint is the final protection against concurrent identical submissions.
 
 ### Expected behavior
 
 Different anonymous submitters submitting the same salary -> **accepted**.
 
-Same anonymous submitter submitting the same compensation identity within 24 hours -> **rejected as duplicate**.
+Same anonymous submitter submitting the same compensation identity again at any time -> **rejected as duplicate**.
+
+For the same anonymous submitter, a monthly submission and an annual submission with the same annualized base salary are duplicates. Changing only bonus or stock also remains a duplicate because neither is part of the identity.
 
 Do not use IP-based duplicate detection.
 
@@ -373,7 +378,7 @@ Index fields used heavily for filtering/search:
 - `CompensationEntry.currency`
 - `CompensationEntry.createdAt`
 
-Duplicate lookup should also be optimized for the combination of:
+Permanent duplicate identity must be enforced with a composite unique constraint on:
 
 - `submitterId`
 - `companyId`
@@ -384,11 +389,10 @@ Duplicate lookup should also be optimized for the combination of:
 - `country`
 - `annualBaseSalary`
 - `currency`
-- `createdAt`
 
 Note:
 
-`Company.nameNormalized` being unique already creates an index in PostgreSQL/Prisma, so do not add an unnecessary duplicate index if Prisma already handles it.
+`Company.nameNormalized` and the duplicate composite unique constraint already create indexes in PostgreSQL/Prisma, so do not add redundant indexes for those same field combinations.
 
 ---
 
@@ -463,7 +467,7 @@ Use the anonymous browser identifier/cookie mechanism instead.
 7. calculate total compensation
 8. resolve/create anonymous submitter
 9. resolve/create company by normalized company name
-10. check the 24-hour duplicate rule
+10. check the permanent duplicate identity and handle a database unique-constraint conflict as a duplicate submission
 11. insert `CompensationEntry`
 12. return created record summary
 
@@ -493,7 +497,7 @@ Use the anonymous browser identifier/cookie mechanism instead.
   "success": false,
   "error": {
     "code": "DUPLICATE_SUBMISSION",
-    "message": "A similar compensation entry was submitted by this user within the last 24 hours."
+    "message": "This compensation identity has already been submitted by this user."
   }
 }
 ```
@@ -970,9 +974,10 @@ Reject:
 
 ### Duplicate detection
 
-- same submitter + same compensation identity within 24h -> rejected
+- same submitter + same compensation identity at any time -> rejected
 - different submitter + same compensation -> accepted
-- same submitter outside 24h -> accepted
+- same submitter + same annualized base salary but a different salary period -> rejected
+- same submitter + only different bonus or stock -> rejected
 
 ---
 
@@ -1096,4 +1101,3 @@ The backend is complete when:
 - README explains setup and API usage
 - project builds successfully
 - deployed backend can be demonstrated reliably
-
