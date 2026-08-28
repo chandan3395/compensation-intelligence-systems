@@ -42,6 +42,7 @@ function decimalToNumber(value: Prisma.Decimal | null | undefined): number {
   return value.toNumber();
 }
 
+// Input is sorted by the database so the median works for both odd and even sample sizes
 function calculateMedian(sortedValues: Prisma.Decimal[]): Prisma.Decimal {
   const middleIndex = Math.floor(sortedValues.length / 2);
 
@@ -52,10 +53,12 @@ function calculateMedian(sortedValues: Prisma.Decimal[]): Prisma.Decimal {
   return sortedValues[middleIndex - 1].add(sortedValues[middleIndex]).div(2);
 }
 
+// Produces company metrics for one currency and returns a domain no-match result instead of throwing
 export async function getCompanyCompensationAggregation(
   companyName: string,
   query: CompensationAggregationFilters,
 ): Promise<CompanyAggregationResult> {
+  // Resolve through the same canonical company identity used when entries are created.
   const company = await prisma.company.findUnique({
     where: { nameNormalized: normalizeCompanyName(companyName) },
     select: { id: true, nameRaw: true },
@@ -74,6 +77,9 @@ export async function getCompanyCompensationAggregation(
     state: query.state,
     country: query.country,
   };
+
+  // SQL computes count/averages/min/max
+  // sorted raw totals are still needed because Prisma has no median aggregate
 
   const [aggregates, totalCompensationValues, levelGroups] =
     await prisma.$transaction([
@@ -103,6 +109,8 @@ export async function getCompanyCompensationAggregation(
       }),
     ]);
 
+  // Aggregate values are null for an empty set, so return the public no-match result before converting Decimals
+  
   if (aggregates._count._all === 0) {
     return { status: "not_found" };
   }

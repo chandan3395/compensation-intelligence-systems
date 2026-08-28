@@ -65,10 +65,12 @@ function isUniqueConstraintError(error: unknown): boolean {
   );
 }
 
+// Creates a record from validated input and returns a domain result instead of leaking Prisma errors to the route.
 export async function createCompensationEntry(
   input: ValidatedCompensationPayload,
   existingAnonymousId?: string,
 ): Promise<CreateCompensationResult> {
+  // Never accept an identifier from the request body; a missing browser identifier starts a new anonymous identity.
   const anonymousId = existingAnonymousId ?? randomUUID();
   const companyNormalized = normalizeCompanyName(input.company);
   const roleNormalized = normalizeRole(input.role);
@@ -83,6 +85,7 @@ export async function createCompensationEntry(
   );
 
   try {
+    // Submitter/company resolution and entry creation must commit together so a failed entry cannot leave half-written state.
     return await prisma.$transaction(async (tx) => {
       const submitter = await tx.anonymousSubmitter.upsert({
         where: { anonymousId },
@@ -115,6 +118,7 @@ export async function createCompensationEntry(
       });
 
       if (existingEntry) {
+        // Avoid attempting a known duplicate in the common sequential-request case.
         return { status: "duplicate", anonymousId };
       }
 
@@ -156,8 +160,9 @@ export async function createCompensationEntry(
       };
     });
   } catch (error) {
-    // The pre-insert lookup gives a friendly normal-case result. The database
-    // unique constraint remains the final guard when equivalent requests race.
+
+    // The pre-insert lookup gives a friendly normal-case result. 
+    // The database unique constraint remains the final guard when equivalent requests race. [In the schema.prisma]
     if (isUniqueConstraintError(error)) {
       return { status: "duplicate", anonymousId };
     }
@@ -166,9 +171,13 @@ export async function createCompensationEntry(
   }
 }
 
+// Builds the canonical Prisma filters, sorts, and offset page for the public search endpoint
+
 export async function searchCompensationEntries(
   query: ValidatedCompensationSearchQuery,
 ): Promise<CompensationSearchResult> {
+
+  // Query against canonical identities so filter behavior matches ingestion and duplicate matching
   const where: Prisma.CompensationEntryWhereInput = {
     level: query.level,
     city: query.city,
@@ -206,13 +215,19 @@ export async function searchCompensationEntries(
           }
         : undefined,
   };
+
+  // Default to the most recently created entries when the caller does not request a sort
   const sortBy = query.sortBy ?? "createdAt";
   const order = query.order ?? "desc";
   const orderBy: Prisma.CompensationEntryOrderByWithRelationInput = {
     [sortBy]: order,
   };
+
+  // Offset pagination skips all complete earlier pages
+  // cursor pagination is not needed at this point of time
   const skip = (query.page - 1) * query.limit;
 
+  // Group the page query and count as one database operation for the same filtering request
   const [entries, totalRecords] = await prisma.$transaction([
     prisma.compensationEntry.findMany({
       where,

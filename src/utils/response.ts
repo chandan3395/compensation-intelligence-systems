@@ -11,6 +11,8 @@ export type ErrorResponse = {
   };
 };
 
+// Keeps success payloads typed while routes retain ownership of HTTP status codes
+// This is a general structure 
 export function successResponse<T>(data: T): SuccessResponse<T> {
   return {
     success: true,

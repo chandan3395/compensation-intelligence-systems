@@ -48,11 +48,13 @@ function validationSuccess<T>(data: T): ValidationResult<T> {
   return { ok: true, data };
 }
 
+// Narrow unknown JSON into a plain object before reading user-controlled fields.
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseRequiredText(value: unknown, field: string): ValidationResult<string> {
+  // Trimming is only for the emptiness check; display values and identity normalization are handled later.
   if (typeof value !== "string" || value.trim().length === 0) {
     return validationFailure(`${field} is required and must be a non-empty string.`);
   }
@@ -78,6 +80,7 @@ function parseRequiredNumber(
   minimum: number,
   maximum?: number,
 ): ValidationResult<number> {
+  // JSON can contain numbers that TypeScript accepts but the database should never receive (NaN/Infinity).
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return validationFailure(`${field} must be a finite number.`);
   }
@@ -105,6 +108,9 @@ function parseOptionalNumber(
 export function validateCompensationPayload(
   input: unknown,
 ): ValidationResult<ValidatedCompensationPayload> {
+  // Validation intentionally stops at type/range rules
+  // normalization, salary calculations, and persistence belong elsewhere
+  
   if (!isRecord(input)) {
     return validationFailure("Compensation data must be an object.");
   }

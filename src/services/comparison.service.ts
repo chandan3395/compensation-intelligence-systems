@@ -20,9 +20,13 @@ export type CompanyComparisonResult =
   | { status: "not_found" }
   | { status: "found"; data: CompanyComparisonEntry[] };
 
+// Reuses the company aggregation calculation to return a uniform result for each requested company
+
 export async function compareCompanyCompensation(
   query: ValidatedCompanyComparisonQuery,
 ): Promise<CompanyComparisonResult> {
+
+  // Each aggregation is independent, so run them concurrently while preserving request order in Promise.all
   const aggregations = await Promise.all(
     query.companies.map((company) =>
       getCompanyCompensationAggregation(company, query),
@@ -33,6 +37,9 @@ export async function compareCompanyCompensation(
 
   for (const aggregation of aggregations) {
     if (aggregation.status === "not_found") {
+
+      // Comparisons are all-or-nothing
+      // a requested company without matching data invalidates the comparison
       return { status: "not_found" };
     }
 

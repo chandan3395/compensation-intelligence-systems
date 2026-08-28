@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(successResponse(result.data));
   } catch (error) {
+    // A comparison failure must not leak Prisma internals to clients.
     console.error("Failed to compare company compensation", error);
 
     return NextResponse.json(

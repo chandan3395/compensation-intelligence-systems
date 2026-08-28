@@ -34,6 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json(successResponse(result.data));
   } catch (error) {
+    // Keep operational detail in server logs and preserve the common API error envelope.
     console.error("Failed to aggregate company compensation", error);
 
     return NextResponse.json(

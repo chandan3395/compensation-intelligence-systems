@@ -463,6 +463,7 @@ const entries: SeedEntry[] = [
 ];
 
 async function main() {
+  // Upserts make supporting records repeatable without deleting developer-created records
   const submitterByAnonymousId = new Map<string, string>();
   for (const anonymousId of submitterAnonymousIds) {
     const submitter = await prisma.anonymousSubmitter.upsert({
@@ -486,6 +487,7 @@ async function main() {
     companyByNormalizedName.set(nameNormalized, company.id);
   }
 
+  // Use the production normalization and salary helpers so seeded records obey the same invariants as API-created records.
   const entryData = entries.map((entry, index) => {
     const baseSalarySubmitted = new Prisma.Decimal(entry.baseSalary);
     const annualBaseSalary = annualizeBaseSalary(
@@ -516,10 +518,12 @@ async function main() {
         annualStock,
       ),
       yearsOfExperience: new Prisma.Decimal(entry.yearsOfExperience),
+      // Fixed timestamps make default sorting and pagination determinstic
       createdAt: new Date(Date.UTC(2025, 0, index + 1)),
     };
   });
 
+  // The composite duplicate constraint makes re-running the seed additive and safe for these fixed records.
   const result = await prisma.compensationEntry.createMany({
     data: entryData,
     skipDuplicates: true,

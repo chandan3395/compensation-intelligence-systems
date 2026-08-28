@@ -65,9 +65,16 @@ model CompensationEntry {
   yearsOfExperience   Decimal      @db.Decimal(4, 1)
   createdAt           DateTime     @default(now())
 
+  // creating foreign keys
+  // onDelete: Restrict --> why??
+  // company is deleted but CompensationEntry still references it 
+
   company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   submitter AnonymousSubmitter @relation(fields: [submitterId], references: [id], onDelete: Restrict)
 
+  // To prevent the same AnonymousSubmitter from submitting more than one submissions
+  // if he is able to submit more than one compensation then he will be able to manipulate the aggregation of that company's compensation
+  
   @@unique([submitterId, companyId, roleNormalized, level, city, state, country, annualBaseSalary, currency])
   @@index([companyId])
   @@index([roleNormalized])

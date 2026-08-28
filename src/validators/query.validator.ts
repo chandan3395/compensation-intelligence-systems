@@ -68,6 +68,8 @@ function parseOptionalText(
     return validationSuccess(undefined);
   }
 
+  // Query text is trimmed for filtering, unlike ingestion text which preserves its raw display form
+
   const trimmedValue = value.trim();
   if (trimmedValue.length === 0) {
     return validationFailure(`${field} must be a non-empty string when provided.`);
@@ -124,6 +126,7 @@ function parseOptionalNumber(
     return validationFailure(`${field} must be a finite number.`);
   }
 
+  // URL query values arrive as strings; parse once so services never need to handle raw input
   const parsedValue = Number(value);
   if (!Number.isFinite(parsedValue)) {
     return validationFailure(`${field} must be a finite number.`);
@@ -194,6 +197,7 @@ export function validateCompensationSearchQuery(
   const maxBaseSalary = parseOptionalNumber(query, "maxBaseSalary", 0);
   if (!maxBaseSalary.ok) return maxBaseSalary;
 
+  // Reject impossible ranges before a database query can silently return no records
   if (
     minBaseSalary.data !== undefined &&
     maxBaseSalary.data !== undefined &&
@@ -291,6 +295,8 @@ export function validateCompanyComparisonQuery(
     return validationFailure("companies must contain between 2 and 5 names.");
   }
 
+  // Rejection is clearer than deduplication: the caller must explicitly choose 2–5 distinct companies
+  // less than 2 and more than 5 results in error
   if (new Set(companies).size !== companies.length) {
     return validationFailure("companies cannot contain duplicate names.");
   }

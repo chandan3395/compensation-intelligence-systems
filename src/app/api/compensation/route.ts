@@ -12,6 +12,7 @@ const ANONYMOUS_ID_COOKIE = "anonymous_submitter_id";
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
 
 function setAnonymousIdCookie(response: NextResponse, anonymousId: string) {
+  // The browser carries this anonymous identity; HTTP-only keeps it unavailable to client-side JavaScript.
   response.cookies.set({
     name: ANONYMOUS_ID_COOKIE,
     value: anonymousId,
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
+    // Invalid JSON is intentionally reported as the same client-safe validation failure as an invalid payload.
     return NextResponse.json(
       errorResponse("VALIDATION_ERROR", "Invalid compensation data."),
       { status: 400 },
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest) {
       );
 
       if (!cookieAnonymousId) {
+        // A first request can still race into a duplicate result, so establish its identity consistently.
         setAnonymousIdCookie(response, result.anonymousId);
       }
 
@@ -77,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
+    // Log server detail privately; clients only receive a stable application-level error.
     console.error("Failed to create compensation entry", error);
 
     return NextResponse.json(
@@ -104,6 +108,7 @@ export async function GET(request: NextRequest) {
       pagination: result.pagination,
     });
   } catch (error) {
+    // Do not expose database/query details in the public API response.
     console.error("Failed to search compensation entries", error);
 
     return NextResponse.json(
