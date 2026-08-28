@@ -68,6 +68,7 @@ model CompensationEntry {
   company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   submitter AnonymousSubmitter @relation(fields: [submitterId], references: [id], onDelete: Restrict)
 
+  @@unique([submitterId, companyId, roleNormalized, level, city, state, country, annualBaseSalary, currency])
   @@index([companyId])
   @@index([roleNormalized])
   @@index([level])
@@ -76,5 +77,4 @@ model CompensationEntry {
   @@index([country])
   @@index([currency])
   @@index([createdAt])
-  @@unique([submitterId, companyId, roleNormalized, level, city, state, country, annualBaseSalary, currency])
 }
