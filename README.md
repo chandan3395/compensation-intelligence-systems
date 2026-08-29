@@ -2,11 +2,15 @@
 
 A focused Next.js backend for collecting anonymous compensation submissions, searching them, aggregating company data, and comparing companies. It is intentionally small: the project emphasizes clear validation, durable data integrity, and explainable API behavior over a large application framework.
 
+## Live Deployment
+
+https://compensation-intelligence-systems.vercel.app
+
 ## Tech stack
 
 - Next.js App Router route handlers
 - TypeScript
-- PostgreSQL (Neon-hosted in development)
+- PostgreSQL (hosted on Neon)
 - Prisma ORM
 - Node's built-in test runner, executed through `tsx`
 
